@@ -2,11 +2,11 @@ import asyncio
 import logging
 import os
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot, Dispatcher, F
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ChatMemberStatus, ParseMode
 from aiogram.filters import CommandStart
-from aiogram.types import InlineKeyboardButton, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dotenv import load_dotenv
 
@@ -21,9 +21,10 @@ PROXY_LINK = "tg://proxy?server=89.124.81.114&port=1488&secret=b924ebf8af227a940
 dp = Dispatcher()
 
 
-def kb_subscribe():
+def kb_not_subscribed():
     kb = InlineKeyboardBuilder()
     kb.row(InlineKeyboardButton(text="📢 Подписаться на канал", url=CHANNEL_LINK))
+    kb.row(InlineKeyboardButton(text="✅ Проверить подписку", callback_data="check_sub"))
     return kb.as_markup()
 
 
@@ -48,22 +49,42 @@ async def is_user_subscribed(bot: Bot, user_id: int) -> bool:
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message, bot: Bot) -> None:
-    await message.answer("⏳ Проверяю подписку...")
-
     subscribed = await is_user_subscribed(bot, message.from_user.id)
 
     if subscribed:
         await message.answer(
             "✅ Подписка подтверждена.\n\n"
-            "Нажми кнопку ниже, чтобы подключить прокси в Telegram.\n\n"
-            f"<code>{PROXY_LINK}</code>",
+            "Нажми кнопку ниже, чтобы подключить прокси в Telegram.",
             reply_markup=kb_proxy(),
         )
     else:
         await message.answer(
-            "❌ Ты не подписан на канал.\n\n"
-            "Сначала подпишись, потом снова отправь /start.",
-            reply_markup=kb_subscribe(),
+            "Для того чтобы воспользоваться ботом и получить доступ к прокси, "
+            "подпишись на канал 17teen Exchange.",
+            reply_markup=kb_not_subscribed(),
+        )
+
+
+@dp.callback_query(F.data == "check_sub")
+async def callback_check_sub(callback: CallbackQuery, bot: Bot) -> None:
+    await callback.answer()
+
+    subscribed = await is_user_subscribed(bot, callback.from_user.id)
+
+    if callback.message is None:
+        return
+
+    if subscribed:
+        await callback.message.edit_text(
+            "✅ Подписка подтверждена.\n\n"
+            "Нажми кнопку ниже, чтобы подключить прокси в Telegram.",
+            reply_markup=kb_proxy(),
+        )
+    else:
+        await callback.message.edit_text(
+            "Для того чтобы воспользоваться ботом и получить доступ к прокси, "
+            "подпишись на канал 17teen Exchange.",
+            reply_markup=kb_not_subscribed(),
         )
 
 
